@@ -61,13 +61,22 @@
     };
   }
   // id：種類、lv：難しさ、ans：答えの期限、grp：出す先、name：帳に出す名前、look：1回目のヒント、key：2回目のヒント（条文の言葉）、why：説明、sit：言い方、src：出典、near：まぎらわしい期限、media：問いの見出し
+  // 条文の言葉をヒントに出すときに、意味を変えずに読みやすくする（「三月」→「3か月」・「知つた」→「知った」・漢数字→数字）。
+  // 条文の「三月」は3か月のこと（3月とまちがえやすい）。shared-workflows の scripts/game-ja.mjs の law:raw が見る（routines/game-ja.md）
+  const KN = { "〇": 0, "一": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9 };
+  const kanjiNum = (s) => { let n = 0, c = 0; for (const ch of s) { const u = { "十": 10, "百": 100, "千": 1000 }[ch]; if (u) { n += (c || 1) * u; c = 0; } else c = KN[ch]; } return n + c; };
+  const lawPlain = (s) => String(s)
+    .replace(/([〇一二三四五六七八九十百千]+)(?:箇月|月(?![〇一二三四五六七八九十0-9]*日))/g, (_, k) => kanjiNum(k) + "か月")
+    .replace(/([〇一二三四五六七八九十百千]+)(年|日|か月|週間|時間|歳|分の|条|項|号|メートル|キロメートル|キログラム|トン|人|回)/g, (_, k, u) => kanjiNum(k) + u)
+    .replace(/(分の|条の)([〇一二三四五六七八九十百千]+)/g, (_, p, k) => p + kanjiNum(k))
+    .replace(/([一-龯]|[あよなわ])つ(た(?!め)|て)/g, "$1っ$2");
   const K = (id, lv, ans, grp, name, look, key, why, sit, src, near = [], media = "届け出") => {
     const a = LEVELS.indexOf(ans), nr = near.map((n) => LEVELS.indexOf(n));
     if (a < 0 || nr.some((i) => i < 0)) throw new Error("期限の名前がちがう: " + id);
     if (!GROUPS[grp]) throw new Error("出す先がちがう: " + id);
     if (!src.every((s) => SRC[s])) throw new Error("出典がちがう: " + id);
     sit.media = media;
-    return { id, lv, a, ans, grp, near: nr, name, look, key, why, src, make: kigenQ(a, sit, nr) };
+    return { id, lv, a, ans, grp, near: nr, name, look, key: lawPlain(key), why, src, make: kigenQ(a, sit, nr) };
   };
 
   const KINDS = [
